@@ -19,7 +19,7 @@
         width: 80%;
         margin: auto;
       }
-    #subtitle {
+      #subtitle {
         font-size: 16px; /* Adjust the font size as needed */
         margin-top: 5px; /* Add some margin to separate from the h1 heading */
       }
@@ -428,22 +428,32 @@
     ];
     // Flatten your data
     var flattenedData = yourData.flatMap(d => d.SalesOrders);
+    var donutData = flattenedData.map(d => ({...d, "Rep": d.Rep}));
+    var streamgraphData = flattenedData.map(d => ({...d, "Item": d.Item}));
+    var correlationData = flattenedData.map(d => ({...d, "Item": d.Item === d.Item ? d.Item : null}));
+    var histogramData = flattenedData.map(d => ({...d, "Item": d.Item === d.Item ? d.Item : null}));
 
     var donutSpec = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "title": "Donut Chart",
-        "data": { "values": flattenedData },
+        "data": { "values": donutData },
+        
         "mark": { "type": "arc", "innerRadius": 50 },
         "encoding": {
           "theta": { "field": "Total", "type": "quantitative" },
-          "color": { "field": "Rep", "type": "nominal" }
+          "color": { "field": "Rep", "type": "nominal" },
+          "tooltip": [
+            {"field": "Rep", "type": "nominal"},
+            {"field": "Total", "type": "quantitative"}
+          ]
         },
+        
         "view": { "stroke": null }
       };
       var correlationSpec = {
         "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
         "title": "Correlation between Units and Unit Cost",
-        "data": { "values": flattenedData },
+        "data": { "values": correlationData },
         "selection": {
           "brush": {"type": "interval"}
         },
@@ -454,64 +464,76 @@
           "color": {
             "condition": {"selection": "brush", "field": "Item", "type": "nominal"},
             "value": "grey"
-          }
+          },
+          "tooltip": [
+              {"field": "Units", "type": "quantitative"},
+              {"field": "Unit Cost", "type": "quantitative"}
+            ]
         }
       };
-      var streamgraphSpec = {
-        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-        "title": "Streamgraph of Total over Time",
-        "data": { "values": flattenedData },
-        "mark": "area",
-        "encoding": {
-          "x": {"field": "OrderDate", "type": "temporal"},
-          "y": {"field": "Total", "type": "quantitative", "stack": "center"},
-          "color": {"field": "Item", "type": "nominal"}
+    var streamgraphSpec = {
+      "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+      "title": "Streamgraph of Total over Time",
+      "data": { "values": streamgraphData },
+      "mark": "area",
+      "encoding": {
+        "x": {"field": "OrderDate", "type": "temporal"},
+        "y": {"field": "Total", "type": "quantitative", "stack": "center"},
+        "color": {"field": "Item", "type": "nominal"},
+        "tooltip": [
+          {"field": "Item", "type": "nominal"},
+          {"field": "Total", "type": "quantitative"}
+        ]
+      }
+    };
+    var histogramSpec = {
+      "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+      "title": "Histogram of Units",
+      "data": { "values": histogramData },
+      "layer": [
+        {
+          "mark": "bar",
+          "encoding": {
+            "x": {"field": "Units", "type": "quantitative", "bin": true},
+            "y": {"aggregate": "count", "type": "quantitative"},
+            "color": {"field": "Item", "type": "nominal"},
+            "tooltip": [
+          {"field": "Units", "type": "quantitative", "title": "Units"},
+          {"field": "count", "type": "quantitative", "aggregate": "count", "title": "Count"}
+        ]
+          }
+        },
+        {
+          "mark": "rule",
+          "encoding": {
+            "x": {"field": "Units", "type": "quantitative", "aggregate": "mean"},
+            "color": {"value": "red"},
+            "size": {"value": 2},
+            "tooltip": [
+          {"field": "Units", "type": "quantitative", "aggregate": "mean", "title": "Mean Units"}
+        ]
+          }
         }
-      };
-      var histogramSpec = {
-        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-        "title": "Histogram of Units",
-        "data": { "values": flattenedData },
-        "layer": [
-          {
-            "mark": "bar",
-            "encoding": {
-              "x": {"field": "Units", "type": "quantitative", "bin": true},
-              "y": {"aggregate": "count", "type": "quantitative"}
-            }
-          },
-          {
-            "mark": "rule",
-            "encoding": {
-              "x": {"field": "Units", "type": "quantitative", "aggregate": "mean"},
-              "color": {"value": "red"},
-              "size": {"value": 2}
-            }
-          }
-        ]
-      };
-      var gridSpec = {
-        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-        "vconcat": [
-          {
-            "hconcat": [donutSpec, correlationSpec]
-          },
-          {
-            "hconcat": [streamgraphSpec, histogramSpec]
-          }
-        ]
-      };
+      ]
+    };
+    var gridSpec = {
+      "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+      "vconcat": [
+        {
+          "hconcat": [donutSpec, correlationSpec],
+          "resolve": {"scale": {"color": "independent"}}
+        },
+        {
+          "hconcat": [streamgraphSpec, histogramSpec],
+          "resolve": {"scale": {"color": "independent"}}
+        }
+      ],
+      "resolve": {"scale": {"color": "independent"}}
       
-      vegaEmbed('#vis', gridSpec);
+    };
+    
+    vegaEmbed('#vis', gridSpec);
       
-      
-      /*var multiViewSpec = {
-        "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
-        "vconcat": [donutSpec, correlationSpec, streamgraphSpec, histogramSpec]
-      };
-      
-      vegaEmbed('#vis', multiViewSpec);*/
-                        
       
   </script>
 </body>
